@@ -76,12 +76,14 @@ Peca gerarPeca() {
 }
 
 // Função para inserir uma peça na fila (enqueue)
-void inserirFila(Fila *fila, Peca peca) {
-    if (!filaCheia(fila)) {
-        fila->tras = (fila->tras + 1) % TAMANHO_FILA;
-        fila->elementos[fila->tras] = peca;
-        fila->tamanho++;
+int inserirFila(Fila *fila, Peca peca) {
+    if (filaCheia(fila)) {
+        return 0; // Falha
     }
+    fila->tras = (fila->tras + 1) % TAMANHO_FILA;
+    fila->elementos[fila->tras] = peca;
+    fila->tamanho++;
+    return 1; // Sucesso
 }
 
 // Função para remover uma peça da fila (dequeue)
@@ -97,13 +99,20 @@ Peca removerFila(Fila *fila) {
     return peca_removida;
 }
 
+// Função para visualizar a frente da fila sem remover
+Peca verFrenteFila(Fila *fila) {
+    return fila->elementos[fila->frente];
+}
+
 // Função para inserir uma peça na pilha (push)
-void empilhar(Pilha *pilha, Peca peca) {
-    if (!pilhaCheia(pilha)) {
-        pilha->topo++;
-        pilha->elementos[pilha->topo] = peca;
-        pilha->tamanho++;
+int empilhar(Pilha *pilha, Peca peca) {
+    if (pilhaCheia(pilha)) {
+        return 0; // Falha
     }
+    pilha->topo++;
+    pilha->elementos[pilha->topo] = peca;
+    pilha->tamanho++;
+    return 1; // Sucesso
 }
 
 // Função para remover uma peça da pilha (pop)
@@ -117,6 +126,11 @@ Peca desempilhar(Pilha *pilha) {
     }
     
     return peca_removida;
+}
+
+// Função para visualizar o topo da pilha sem remover
+Peca verTopoPilha(Pilha *pilha) {
+    return pilha->elementos[pilha->topo];
 }
 
 // Função para exibir o estado atual da fila e pilha
@@ -152,9 +166,11 @@ void exibirEstado(Fila *fila, Pilha *pilha) {
 void exibirMenu() {
     printf("\n=== OPÇÕES DE AÇÃO ===\n");
     printf("Código\tAção\n");
-    printf("1\tJogar peça\n");
-    printf("2\tReservar peça\n");
-    printf("3\tUsar peça reservada\n");
+    printf("1\tJogar peça da frente da fila\n");
+    printf("2\tEnviar peça da fila para a pilha de reserva\n");
+    printf("3\tUsar peça da pilha de reserva\n");
+    printf("4\tTrocar peça da frente da fila com o topo da pilha\n");
+    printf("5\tTrocar os 3 primeiros da fila com as 3 peças da pilha\n");
     printf("0\tSair\n");
     printf("\nEscolha uma opção: ");
 }
@@ -165,6 +181,61 @@ void preencherFila(Fila *fila) {
         Peca nova_peca = gerarPeca();
         inserirFila(fila, nova_peca);
     }
+}
+
+// Função para trocar peça da frente da fila com o topo da pilha
+void trocarFrenteTopo(Fila *fila, Pilha *pilha) {
+    if (filaVazia(fila) || pilhaVazia(pilha)) {
+        printf("Erro: Fila ou pilha vazia para troca!\n");
+        return;
+    }
+    
+    Peca frente_fila = removerFila(fila);
+    Peca topo_pilha = desempilhar(pilha);
+    
+    inserirFila(fila, topo_pilha);
+    empilhar(pilha, frente_fila);
+    
+    // Ajusta a fila para manter a ordem correta após inserção
+    Peca temp = removerFila(fila);
+    inserirFila(fila, temp);
+    
+    printf("Troca realizada: [%c %d] <-> [%c %d]\n", 
+           frente_fila.nome, frente_fila.id, 
+           topo_pilha.nome, topo_pilha.id);
+}
+
+// Função para trocar múltipla (3 primeiros da fila com 3 da pilha)
+void trocarMultipla(Fila *fila, Pilha *pilha) {
+    if (fila->tamanho < 3 || pilha->tamanho < 3) {
+        printf("Erro: É necessário ter pelo menos 3 peças na fila e na pilha!\n");
+        return;
+    }
+    
+    // Arrays temporários para armazenar as peças
+    Peca temp_fila[3], temp_pilha[3];
+    
+    // Remove 3 peças da frente da fila
+    for (int i = 0; i < 3; i++) {
+        temp_fila[i] = removerFila(fila);
+    }
+    
+    // Remove 3 peças do topo da pilha
+    for (int i = 0; i < 3; i++) {
+        temp_pilha[i] = desempilhar(pilha);
+    }
+    
+    // Insere as peças da pilha na fila (na ordem original)
+    for (int i = 0; i < 3; i++) {
+        inserirFila(fila, temp_pilha[i]);
+    }
+    
+    // Insere as peças da fila na pilha (na ordem invertida para manter LIFO)
+    for (int i = 2; i >= 0; i--) {
+        empilhar(pilha, temp_fila[i]);
+    }
+    
+    printf("Troca múltipla realizada: 3 peças da fila <-> 3 peças da pilha\n");
 }
 
 int main() {
@@ -182,7 +253,7 @@ int main() {
     // Preenche a fila inicial com peças
     preencherFila(&fila);
     
-    printf("=== Tetris Stack - Gerenciamento de Peças ===\n");
+    printf("=== Tetris Stack - Gerenciamento Avançado de Peças ===\n");
     
     do {
         exibirEstado(&fila, &pilha);
@@ -231,6 +302,16 @@ int main() {
                     Peca peca_usada = desempilhar(&pilha);
                     printf("Peça reservada usada: [%c %d]\n", peca_usada.nome, peca_usada.id);
                 }
+                break;
+                
+            case 4:
+                // Trocar peça da frente da fila com topo da pilha
+                trocarFrenteTopo(&fila, &pilha);
+                break;
+                
+            case 5:
+                // Trocar múltipla
+                trocarMultipla(&fila, &pilha);
                 break;
                 
             default:
